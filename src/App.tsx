@@ -7,6 +7,7 @@ import ThemeToggle from './components/ThemeToggle';
 import GroupCard from './components/GroupCard';
 import LoginForm from './components/LoginForm';
 import DigitalClock from './components/DigitalClock';
+import ColorPicker from './components/ColorPicker';
 import './App.css';
 import {
   DndContext,
@@ -103,8 +104,16 @@ const DEFAULT_CONFIGS = {
   'site.name': '导航站',
   'site.customCss': '',
   'site.backgroundImage': '', // 背景图片URL
+  'site.backgroundColor1': '', // 背景颜色1（十六进制）
+  'site.backgroundColor2': '', // 背景颜色2（十六进制，用于渐变）
+  'site.backgroundGradient': 'false', // 是否使用渐变色
+  'site.backgroundGradientAngle': '135', // 渐变角度（度）
   'site.backgroundOpacity': '0.15', // 背景蒙版透明度
   'site.iconApi': 'https://www.faviconextractor.com/favicon/{domain}?larger=true', // 默认使用的API接口，带上 ?larger=true 参数可以获取最大尺寸的图标
+  'group.backgroundColor': '#ffffff', // 分组背景颜色（十六进制）
+  'group.backgroundSaturation': '0.95', // 分组背景饱和度（0-1）
+  'site.cardBackgroundColor': '#ffffff', // 卡片背景颜色（十六进制）
+  'site.cardBackgroundSaturation': '1.0', // 卡片背景饱和度（0-1）
   // ⏰ 新增：时钟默认配置
   'clock.enabled': 'true', // 是否启用
   'clock.customFontSize': '40px', // 字体大小 (默认改为 px)
@@ -576,6 +585,115 @@ function App() {
       [e.target.name]: e.target.value,
     });
   };
+  // 颜色选择器处理函数
+  const handleColorChange = (configKey: string, color: string) => {
+    setTempConfigs({
+      ...tempConfigs,
+      [configKey]: color,
+    });
+  };
+  // 颜色选择器组件（仅颜色+饱和度）
+  const ColorPickerWithSaturation: React.FC<{
+    colorValue: string;
+    saturationValue: string;
+    colorConfigKey: string;
+    saturationConfigKey: string;
+    label: string;
+    helperText?: string;
+  }> = ({
+    colorValue,
+    saturationValue,
+    colorConfigKey,
+    saturationConfigKey,
+    label,
+    helperText,
+  }) => {
+    const [showPicker, setShowPicker] = useState(false);
+
+    return (
+      <Box sx={{ mb: 2 }}>
+        <Typography variant="subtitle1" gutterBottom>
+          {label}
+        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+          <Button
+            variant="outlined"
+            onClick={() => setShowPicker(!showPicker)}
+            sx={{
+              minWidth: 'auto',
+              px: 1,
+              py: 0.5,
+              backgroundColor: colorValue || 'transparent',
+              border: '1px solid',
+              borderColor: 'divider',
+              '&:hover': {
+                backgroundColor: colorValue || 'action.hover',
+              },
+            }}
+          >
+            <Box
+              sx={{
+                width: 20,
+                height: 20,
+                borderRadius: 1,
+                backgroundColor: colorValue || '#ffffff',
+                border: '1px solid',
+                borderColor: 'divider',
+              }}
+            />
+          </Button>
+          <TextField
+            size="small"
+            fullWidth
+            value={colorValue}
+            onChange={(e) => handleColorChange(colorConfigKey, e.target.value)}
+            placeholder="选择颜色或输入十六进制颜色值"
+          />
+        </Box>
+        {showPicker && (
+          <Box sx={{ mt: 1, mb: 2 }}>
+            <ColorPicker
+              value={colorValue}
+              onChange={(color) => handleColorChange(colorConfigKey, color)}
+              width={280}
+              height={200}
+            />
+            <Button
+              size="small"
+              onClick={() => setShowPicker(false)}
+              sx={{ mt: 1 }}
+            >
+              关闭调色板
+            </Button>
+          </Box>
+        )}
+        {/* 饱和度滑块 */}
+        <Box sx={{ pl: 1, borderLeft: '2px solid', borderColor: 'divider' }}>
+          <Typography variant="body2" color="text.secondary" gutterBottom>
+            饱和度: {Number(saturationValue).toFixed(2)}
+          </Typography>
+          <Slider
+            min={0}
+            max={1}
+            step={0.01}
+            valueLabelDisplay="auto"
+            value={Number(saturationValue)}
+            onChange={(_, value) => {
+              handleColorChange(saturationConfigKey, String(value));
+            }}
+          />
+          <Typography variant="caption" color="text.secondary">
+            值越小越灰（0 = 灰色，1 = 原始颜色）
+          </Typography>
+        </Box>
+        {helperText && (
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+            {helperText}
+          </Typography>
+        )}
+      </Box>
+    );
+  };
   const handleSaveConfig = async () => {
     try {
       // 保存所有配置
@@ -825,8 +943,8 @@ function App() {
           overflow: 'hidden', // 防止背景图片溢出
         }}
       >
-        {/* 背景图片 */}
-        {configs['site.backgroundImage'] && (
+        {/* 背景图片或颜色 */}
+        {(configs['site.backgroundImage'] || configs['site.backgroundColor1']) && (
           <>
             <Box
               sx={{
@@ -835,24 +953,38 @@ function App() {
                 left: 0,
                 right: 0,
                 bottom: 0,
-                backgroundImage: `url(${configs['site.backgroundImage']})`,
+                // 如果有背景图片，使用图片
+                backgroundImage: configs['site.backgroundImage']
+                  ? `url(${configs['site.backgroundImage']})`
+                  : // 如果有背景颜色，使用颜色或渐变
+                  configs['site.backgroundColor1']
+                  ? configs['site.backgroundGradient'] === 'true' && configs['site.backgroundColor2']
+                    ? // 渐变色
+                      `linear-gradient(${configs['site.backgroundGradientAngle']}deg, ${configs['site.backgroundColor1']}, ${configs['site.backgroundColor2']})`
+                    : // 单色
+                      configs['site.backgroundColor1']
+                  : // 回退到主题颜色
+                    'transparent',
                 backgroundSize: 'cover',
                 backgroundPosition: 'center',
                 backgroundRepeat: 'no-repeat',
                 zIndex: 0,
-                '&::before': {
-                  content: '" "',
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  backgroundColor: (theme) =>
-                    theme.palette.mode === 'dark'
-                      ? 'rgba(0, 0, 0, ' + (1 - Number(configs['site.backgroundOpacity'])) + ')'
-                      : 'rgba(255, 255, 255, ' + (1 - Number(configs['site.backgroundOpacity'])) + ')',
-                  zIndex: 1,
-                },
+                // 如果是图片，添加蒙版
+                ...(configs['site.backgroundImage'] && {
+                  '&::before': {
+                    content: '" "',
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: (theme) =>
+                      theme.palette.mode === 'dark'
+                        ? 'rgba(0, 0, 0, ' + (1 - Number(configs['site.backgroundOpacity'])) + ')'
+                        : 'rgba(255, 255, 255, ' + (1 - Number(configs['site.backgroundOpacity'])) + ')',
+                    zIndex: 1,
+                  },
+                }),
               }}
             />
           </>
@@ -1388,6 +1520,121 @@ function App() {
                     </Typography>
                   </Box>
                 </Box>
+                {/* 新增背景颜色设置 */}
+                <Divider sx={{ my: 2 }} />
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="subtitle1" gutterBottom>
+                    🎨 背景颜色设置（未设置图片时生效）
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                    <Button
+                      variant="outlined"
+                      onClick={() => {
+                        // 切换渐变开关
+                        setTempConfigs({
+                          ...tempConfigs,
+                          'site.backgroundGradient':
+                            tempConfigs['site.backgroundGradient'] === 'true' ? 'false' : 'true',
+                        });
+                      }}
+                      sx={{
+                        minWidth: 'auto',
+                        px: 1,
+                        py: 0.5,
+                        backgroundColor:
+                          tempConfigs['site.backgroundGradient'] === 'true'
+                            ? 'primary.main'
+                            : 'transparent',
+                        color:
+                          tempConfigs['site.backgroundGradient'] === 'true'
+                            ? 'primary.contrastText'
+                            : 'text.primary',
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        '&:hover': {
+                          backgroundColor:
+                            tempConfigs['site.backgroundGradient'] === 'true'
+                              ? 'primary.dark'
+                              : 'action.hover',
+                        },
+                      }}
+                    >
+                      渐变色
+                    </Button>
+                    <TextField
+                      size="small"
+                      label="颜色 1"
+                      type="color"
+                      value={tempConfigs['site.backgroundColor1']}
+                      onChange={(e) =>
+                        handleColorChange('site.backgroundColor1', e.target.value)
+                      }
+                      sx={{ flex: 1 }}
+                    />
+                    {tempConfigs['site.backgroundGradient'] === 'true' && (
+                      <TextField
+                        size="small"
+                        label="颜色 2"
+                        type="color"
+                        value={tempConfigs['site.backgroundColor2']}
+                        onChange={(e) =>
+                          handleColorChange('site.backgroundColor2', e.target.value)
+                        }
+                        sx={{ flex: 1 }}
+                      />
+                    )}
+                  </Box>
+                  {tempConfigs['site.backgroundGradient'] === 'true' && (
+                    <Box sx={{ mt: 2 }}>
+                      <Typography variant="body2" color="text.secondary" gutterBottom>
+                        渐变角度: {tempConfigs['site.backgroundGradientAngle']}°
+                      </Typography>
+                      <Slider
+                        min={0}
+                        max={360}
+                        step={1}
+                        valueLabelDisplay="auto"
+                        value={Number(tempConfigs['site.backgroundGradientAngle'])}
+                        onChange={(_, value) => {
+                          setTempConfigs({
+                            ...tempConfigs,
+                            'site.backgroundGradientAngle': String(value),
+                          });
+                        }}
+                        marks={[
+                          { value: 0, label: '0°' },
+                          { value: 90, label: '90°' },
+                          { value: 180, label: '180°' },
+                          { value: 270, label: '270°' },
+                          { value: 360, label: '360°' },
+                        ]}
+                      />
+                    </Box>
+                  )}
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                    选择背景颜色，启用渐变色后可选择两个颜色创建渐变效果
+                  </Typography>
+                </Box>
+                {/* 新增分组背景颜色和饱和度设置 */}
+                <Divider sx={{ my: 2 }} />
+                <ColorPickerWithSaturation
+                  colorValue={tempConfigs['group.backgroundColor']}
+                  saturationValue={tempConfigs['group.backgroundSaturation']}
+                  colorConfigKey="group.backgroundColor"
+                  saturationConfigKey="group.backgroundSaturation"
+                  label="🎨 分组背景设置"
+                  helperText="使用调色板选择颜色，调整饱和度"
+                />
+                {/* 新增卡片背景颜色和饱和度设置 */}
+                <Divider sx={{ my: 2 }} />
+                <ColorPickerWithSaturation
+                  colorValue={tempConfigs['site.cardBackgroundColor']}
+                  saturationValue={tempConfigs['site.cardBackgroundSaturation']}
+                  colorConfigKey="site.cardBackgroundColor"
+                  saturationConfigKey="site.cardBackgroundSaturation"
+                  label="� 卡片背景设置"
+                  helperText="使用调色板选择颜色，调整饱和度"
+                />
                 {/* ⏰ 新增：时钟设置 */}
                 <Divider sx={{ my: 2 }} />
                 <Typography variant="subtitle1" gutterBottom>

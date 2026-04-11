@@ -18,6 +18,71 @@ import {
 import SettingsIcon from '@mui/icons-material/Settings';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 
+// 辅助函数：调整颜色的饱和度
+function adjustColorSaturation(color: string, saturation: number): string {
+  if (!color || saturation === 1.0) {
+    return color;
+  }
+
+  // 解析十六进制颜色
+  if (color.startsWith('#')) {
+    let hex = color.slice(1);
+    if (hex.length === 3) {
+      hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
+    }
+    if (hex.length === 6) {
+      const r = parseInt(hex.substring(0, 2), 16);
+      const g = parseInt(hex.substring(2, 4), 16);
+      const b = parseInt(hex.substring(4, 6), 16);
+
+      // 转换为 HSL
+      const rNorm = r / 255;
+      const gNorm = g / 255;
+      const bNorm = b / 255;
+      const max = Math.max(rNorm, gNorm, bNorm);
+      const min = Math.min(rNorm, gNorm, bNorm);
+      let h = 0;
+      let s = 0;
+      const l = (max + min) / 2;
+
+      if (max !== min) {
+        const diff = max - min;
+        s = l > 0.5 ? diff / (2 - max - min) : diff / (max + min);
+        if (max === rNorm) {
+          h = ((gNorm - bNorm) / diff + (gNorm < bNorm ? 6 : 0)) / 6;
+        } else if (max === gNorm) {
+          h = ((bNorm - rNorm) / diff + 2) / 6;
+        } else {
+          h = ((rNorm - gNorm) / diff + 4) / 6;
+        }
+      }
+
+      // 应用饱和度调整
+      const newS = s * saturation;
+
+      // HSL 转 RGB（标准公式）
+      const hue2rgb = (p: number, q: number, t: number) => {
+        if (t < 0) t += 1;
+        if (t > 1) t -= 1;
+        if (t < 1 / 6) return p + (q - p) * 6 * t;
+        if (t < 1 / 2) return q;
+        if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+        return p;
+      };
+
+      const q = l < 0.5 ? l * (1 + newS) : l + newS - l * newS;
+      const p = 2 * l - q;
+      const newR = Math.round(hue2rgb(p, q, h + 1 / 3) * 255);
+      const newG = Math.round(hue2rgb(p, q, h) * 255);
+      const newB = Math.round(hue2rgb(p, q, h - 1 / 3) * 255);
+
+      return `rgba(${newR}, ${newG}, ${newB}, 0.9)`;
+    }
+  }
+
+  return color;
+}
+
 interface SiteCardProps {
   site: Site;
   onUpdate: (updatedSite: Site) => void;
@@ -25,6 +90,7 @@ interface SiteCardProps {
   isEditMode?: boolean;
   index?: number;
   iconApi?: string; // 添加iconApi属性
+  configs?: Record<string, string>; // 添加configs属性
 }
 
 // 使用memo包装组件以减少不必要的重渲染
@@ -35,6 +101,7 @@ const SiteCard = memo(function SiteCard({
   isEditMode = false,
   index = 0,
   iconApi, // 添加iconApi参数
+  configs, // 添加configs参数
 }: SiteCardProps) {
   const [showSettings, setShowSettings] = useState(false);
   const [iconError, setIconError] = useState(!site.icon);
@@ -116,8 +183,16 @@ const SiteCard = memo(function SiteCard({
               }
             : {},
           overflow: 'hidden',
-          backgroundColor: (theme) =>
-            theme.palette.mode === 'dark' ? 'rgba(33, 33, 33, 0.9)' : 'rgba(255, 255, 255, 0.9)',
+          backgroundColor: () => {
+            // 优先使用配置的卡片背景颜色
+            const customBgColor = configs?.['site.cardBackgroundColor'];
+            if (customBgColor) {
+              const saturation = parseFloat(configs['site.cardBackgroundSaturation'] || '1.0');
+              return adjustColorSaturation(customBgColor, saturation);
+            }
+            // 否则默认使用白色背景
+            return 'rgba(255, 255, 255, 0.9)';
+          },
           backdropFilter: 'blur(5px)',
         }}
       >
