@@ -37,7 +37,6 @@ import {
   Paper,
   createTheme,
   ThemeProvider,
-  CssBaseline,
   TextField,
   Dialog,
   DialogActions,
@@ -55,8 +54,6 @@ import {
   Slider,
   Switch,
   FormControlLabel,
-  Select,
-  SelectChangeEvent,
 } from '@mui/material';
 import SortIcon from '@mui/icons-material/Sort';
 import SaveIcon from '@mui/icons-material/Save';
@@ -203,7 +200,7 @@ function App() {
   const [importResultMessage, setImportResultMessage] = useState('');
   // 菜单打开关闭
   const handleMenuOpen = (event: React.MouseEvent) => {
-    setMenuAnchorEl(event.currentTarget);
+    setMenuAnchorEl(event.currentTarget as HTMLElement);
   };
   const handleMenuClose = () => {
     setMenuAnchorEl(null);

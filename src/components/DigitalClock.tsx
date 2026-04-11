@@ -1,4 +1,4 @@
-import React, { useState, useEffect, memo } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { Typography, Box, useTheme } from '@mui/material';
 
 export type ClockSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
@@ -15,8 +15,6 @@ export interface DigitalClockProps {
   showSeconds?: boolean;
   /** 时间格式: 12h | 24h */
   format?: '12h' | '24h';
-  /** 日期与时间的分隔符 */
-  separator?: string;
   /** 自定义颜色 (默认跟随主题) */
   color?: string;
   /** 字体粗细 */
@@ -46,7 +44,6 @@ const DigitalClock = memo(function DigitalClock({
   dateDisplay = 'weekday',
   showSeconds = true,
   format = '24h',
-  separator = ' ',
   color,
   fontWeight = 500,
   dateBold = false,
