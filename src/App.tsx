@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { NavigationClient } from './API/client';
 import { MockNavigationClient } from './API/mock';
 import { Site, Group } from './API/http';
@@ -132,6 +132,27 @@ function App() {
     }
     return window.matchMedia('(prefers-color-scheme: dark)').matches;
   });
+  
+  // 保存深色模式切换前的渐变配置，用于切换回浅色模式时恢复
+  // 使用 localStorage 持久化，确保在组件重新渲染后仍能恢复
+  const previousGradientConfig = useRef<{
+    gradient: string;
+    color1: string;
+    color2: string;
+    angle: string;
+  } | null>(null);
+  
+  // 从 localStorage 加载保存的渐变配置
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('previousGradientConfig');
+      if (saved) {
+        previousGradientConfig.current = JSON.parse(saved);
+      }
+    } catch (e) {
+      console.error('读取保存的渐变配置失败:', e);
+    }
+  }, []);
   // 创建Material UI主题
   const theme = useMemo(
     () =>
@@ -142,10 +163,80 @@ function App() {
       }),
     [darkMode]
   );
+  
   // 切换主题的回调函数
   const toggleTheme = () => {
-    setDarkMode(!darkMode);
-    localStorage.setItem('theme', !darkMode ? 'dark' : 'light');
+    const newDarkMode = !darkMode;
+    setDarkMode(newDarkMode);
+    localStorage.setItem('theme', newDarkMode ? 'dark' : 'light');
+    
+    // 切换到深色模式时自动关闭渐变背景
+    if (newDarkMode && configs['site.backgroundGradient'] === 'true') {
+      // 保存当前的渐变配置到 localStorage
+      const gradientConfig = {
+        gradient: configs['site.backgroundGradient'],
+        color1: configs['site.backgroundColor1'],
+        color2: configs['site.backgroundColor2'],
+        angle: configs['site.backgroundGradientAngle'],
+      };
+      localStorage.setItem('previousGradientConfig', JSON.stringify(gradientConfig));
+      
+      // 更新 ref
+      previousGradientConfig.current = gradientConfig;
+      
+      // 关闭渐变
+      setConfigs(prev => ({
+        ...prev,
+        'site.backgroundGradient': 'false'
+      }));
+      // 同时更新服务器配置
+      api.setConfig('site.backgroundGradient', 'false').catch(err => {
+        console.error('保存渐变配置失败:', err);
+      });
+    }
+    
+    // 切换到浅色模式时恢复之前的渐变设置
+    if (!newDarkMode && previousGradientConfig.current) {
+      const savedGradient = previousGradientConfig.current;
+      // 如果之前有渐变配置，恢复它
+      if (savedGradient.gradient === 'true' && savedGradient.color1) {
+        const updatedConfigs = {
+          ...configs,
+          'site.backgroundGradient': 'true',
+          'site.backgroundColor1': savedGradient.color1,
+        };
+
+        // 恢复颜色2（如果存在）
+        if (savedGradient.color2) {
+          updatedConfigs['site.backgroundColor2'] = savedGradient.color2;
+        }
+
+        // 恢复渐变角度（如果存在）
+        if (savedGradient.angle) {
+          updatedConfigs['site.backgroundGradientAngle'] = savedGradient.angle;
+        }
+
+        setConfigs(updatedConfigs);
+
+        // 同步到服务器
+        const updatePromises = [
+          api.setConfig('site.backgroundGradient', 'true'),
+          api.setConfig('site.backgroundColor1', savedGradient.color1),
+        ];
+
+        if (savedGradient.color2) {
+          updatePromises.push(api.setConfig('site.backgroundColor2', savedGradient.color2));
+        }
+
+        if (savedGradient.angle) {
+          updatePromises.push(api.setConfig('site.backgroundGradientAngle', savedGradient.angle));
+        }
+
+        Promise.all(updatePromises).catch(err => {
+          console.error('恢复渐变配置失败:', err);
+        });
+      }
+    }
   };
   const [groups, setGroups] = useState<GroupWithSites[]>([]);
   const [loading, setLoading] = useState(true);
