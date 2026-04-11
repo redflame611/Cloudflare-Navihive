@@ -105,6 +105,20 @@ const mockConfigs: Record<string, string> = {
   'site.title': '我的导航站',
   'site.name': '个人导航',
   'site.customCss': '',
+  'site.iconApi': 'https://www.faviconextractor.com/favicon/{domain}?larger=true',
+  'site.backgroundImage': '',
+  'site.backgroundOpacity': '0.15',
+  // ⏰ 时钟默认配置
+  'clock.enabled': 'true',
+  'clock.customFontSize': '2.5rem',
+  'clock.dateDisplay': 'short',
+  'clock.showSeconds': 'true',
+  'clock.effect': 'none',
+  'clock.glowColor': '#00e5ff',
+  'clock.animationSpeed': 'normal',
+  'clock.fontWeight': '600',
+  'clock.separator': ' · ',
+  'clock.dateBold': 'false',
 };
 
 // 模拟API实现
