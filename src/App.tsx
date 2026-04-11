@@ -1044,38 +1044,43 @@ function App() {
                 left: 0,
                 right: 0,
                 bottom: 0,
+                zIndex: 0,
                 // 如果有背景图片，使用图片
-                backgroundImage: configs['site.backgroundImage']
-                  ? `url(${configs['site.backgroundImage']})`
+                ...(configs['site.backgroundImage']
+                  ? {
+                      backgroundImage: `url(${configs['site.backgroundImage']})`,
+                      backgroundSize: 'cover',
+                      backgroundPosition: 'center',
+                      backgroundRepeat: 'no-repeat',
+                      '&::before': {
+                        content: '" "',
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: (theme) =>
+                          theme.palette.mode === 'dark'
+                            ? 'rgba(0, 0, 0, ' + (1 - Number(configs['site.backgroundOpacity'])) + ')'
+                            : 'rgba(255, 255, 255, ' + (1 - Number(configs['site.backgroundOpacity'])) + ')',
+                        zIndex: 1,
+                      },
+                    }
                   : // 如果有背景颜色，使用颜色或渐变
                   configs['site.backgroundColor1']
                   ? configs['site.backgroundGradient'] === 'true' && configs['site.backgroundColor2']
-                    ? // 渐变色
-                      `linear-gradient(${configs['site.backgroundGradientAngle']}deg, ${configs['site.backgroundColor1']}, ${configs['site.backgroundColor2']})`
-                    : // 单色
-                      configs['site.backgroundColor1']
-                  : // 回退到主题颜色
-                    'transparent',
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-                backgroundRepeat: 'no-repeat',
-                zIndex: 0,
-                // 如果是图片，添加蒙版
-                ...(configs['site.backgroundImage'] && {
-                  '&::before': {
-                    content: '" "',
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    backgroundColor: (theme) =>
-                      theme.palette.mode === 'dark'
-                        ? 'rgba(0, 0, 0, ' + (1 - Number(configs['site.backgroundOpacity'])) + ')'
-                        : 'rgba(255, 255, 255, ' + (1 - Number(configs['site.backgroundOpacity'])) + ')',
-                    zIndex: 1,
-                  },
-                }),
+                    ? {
+                        // 渐变色
+                        backgroundImage: `linear-gradient(${configs['site.backgroundGradientAngle']}deg, ${configs['site.backgroundColor1']}, ${configs['site.backgroundColor2']})`,
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                        backgroundRepeat: 'no-repeat',
+                      }
+                    : {
+                        // 单色 - 使用 backgroundColor 而不是 backgroundImage
+                        backgroundColor: configs['site.backgroundColor1'],
+                      }
+                  : {}),
               }}
             />
           </>
