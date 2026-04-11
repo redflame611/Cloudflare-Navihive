@@ -200,7 +200,7 @@ function App() {
       const savedGradient = previousGradientConfig.current;
       // 如果之前有渐变配置，恢复它
       if (savedGradient.gradient === 'true' && savedGradient.color1) {
-        const updatedConfigs = {
+        const updatedConfigs: Record<string, string> = {
           ...configs,
           'site.backgroundGradient': 'true',
           'site.backgroundColor1': savedGradient.color1,
