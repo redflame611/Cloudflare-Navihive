@@ -169,42 +169,54 @@ function App() {
     const newDarkMode = !darkMode;
     setDarkMode(newDarkMode);
     localStorage.setItem('theme', newDarkMode ? 'dark' : 'light');
-    
-    // 切换到深色模式时自动关闭渐变背景
-    if (newDarkMode && configs['site.backgroundGradient'] === 'true') {
-      // 保存当前的渐变配置到 localStorage
-      const gradientConfig = {
-        gradient: configs['site.backgroundGradient'],
-        color1: configs['site.backgroundColor1'],
-        color2: configs['site.backgroundColor2'],
-        angle: configs['site.backgroundGradientAngle'],
-      };
-      localStorage.setItem('previousGradientConfig', JSON.stringify(gradientConfig));
-      
-      // 更新 ref
-      previousGradientConfig.current = gradientConfig;
-      
-      // 关闭渐变
+
+    // 切换到深色模式时清除背景颜色和渐变
+    if (newDarkMode) {
+      // 保存当前的背景配置到 localStorage，以便切换回浅色模式时恢复
+      if (configs['site.backgroundColor1'] || configs['site.backgroundGradient'] === 'true') {
+        const gradientConfig = {
+          gradient: configs['site.backgroundGradient'],
+          color1: configs['site.backgroundColor1'],
+          color2: configs['site.backgroundColor2'],
+          angle: configs['site.backgroundGradientAngle'],
+        };
+        localStorage.setItem('previousGradientConfig', JSON.stringify(gradientConfig));
+        previousGradientConfig.current = gradientConfig;
+      }
+
+      // 清除背景颜色和渐变
       setConfigs(prev => ({
         ...prev,
-        'site.backgroundGradient': 'false'
+        'site.backgroundGradient': 'false',
+        'site.backgroundColor1': '',
+        'site.backgroundColor2': '',
       }));
-      // 同时更新服务器配置
-      api.setConfig('site.backgroundGradient', 'false').catch(err => {
-        console.error('保存渐变配置失败:', err);
+      
+      // 同步到服务器
+      Promise.all([
+        api.setConfig('site.backgroundGradient', 'false'),
+        api.setConfig('site.backgroundColor1', ''),
+        api.setConfig('site.backgroundColor2', ''),
+      ]).catch(err => {
+        console.error('清除背景配置失败:', err);
       });
     }
-    
-    // 切换到浅色模式时恢复之前的渐变设置
+
+    // 切换到浅色模式时恢复之前的背景配置
     if (!newDarkMode && previousGradientConfig.current) {
       const savedGradient = previousGradientConfig.current;
-      // 如果之前有渐变配置，恢复它
-      if (savedGradient.gradient === 'true' && savedGradient.color1) {
+      
+      // 如果之前有背景配置，恢复它
+      if (savedGradient.color1) {
         const updatedConfigs: Record<string, string> = {
           ...configs,
-          'site.backgroundGradient': 'true',
           'site.backgroundColor1': savedGradient.color1,
         };
+
+        // 恢复渐变设置（如果有）
+        if (savedGradient.gradient === 'true') {
+          updatedConfigs['site.backgroundGradient'] = 'true';
+        }
 
         // 恢复颜色2（如果存在）
         if (savedGradient.color2) {
@@ -220,9 +232,12 @@ function App() {
 
         // 同步到服务器
         const updatePromises = [
-          api.setConfig('site.backgroundGradient', 'true'),
           api.setConfig('site.backgroundColor1', savedGradient.color1),
         ];
+
+        if (savedGradient.gradient === 'true') {
+          updatePromises.push(api.setConfig('site.backgroundGradient', 'true'));
+        }
 
         if (savedGradient.color2) {
           updatePromises.push(api.setConfig('site.backgroundColor2', savedGradient.color2));
@@ -233,7 +248,7 @@ function App() {
         }
 
         Promise.all(updatePromises).catch(err => {
-          console.error('恢复渐变配置失败:', err);
+          console.error('恢复背景配置失败:', err);
         });
       }
     }
@@ -1027,7 +1042,7 @@ function App() {
       <Box
         sx={{
           minHeight: '100vh',
-          bgcolor: 'background.default',
+          bgcolor: darkMode ? '#000000' : '#f5f5f5',
           color: 'text.primary',
           transition: 'all 0.3s ease-in-out',
           position: 'relative', //  添加相对定位，作为背景图片的容器
